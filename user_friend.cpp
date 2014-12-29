@@ -1,15 +1,19 @@
 /******************************************
-*    ¶ÁÈëÊı¾İ                              *
-*    for:Ã¿¸öÓÃ»§                          *
-*        for:ÆäÓàÓÃ»§                      *
-*        ¼ÆËã¹²Í¬·Ö´Ê                       *
-*            if:>¹²Í¬·Ö´ÊÊı>0.2            *
-*                ¼ÆËãÏàËÆ¶È                *
-*        ÕÒ³öÏàËÆ¶È×î¸ßµÄ10¸öÁÚ¾Ó           *
-*    Ğ´ÈëÊı¾İ¿â                            *
-                                          *
-*    Ê±¼ä¸´ÔÓ¶È£ºO(n2)                     *
-*    date:2014/12/20                      *
+*    @file   :user_friend.cpp
+*    @remark :
+*    ¼ÆËãÃ¿¸öÓÃ»§µÄÏàËÆÁÚ¾Ó
+*
+*    ¶ÁÈëÊı¾İ
+*    for:Ã¿¸öÓÃ»§
+*        for:ÆäÓàÓÃ»§
+*        ¼ÆËã¹²Í¬·Ö´Ê
+*            if:>¹²Í¬·Ö´ÊÊı>0.2
+*                ¼ÆËãÏàËÆ¶È
+*        ÕÒ³öÏàËÆ¶È×î¸ßµÄ10¸öÁÚ¾Ó
+*    Ğ´ÈëÊı¾İ¿â
+*
+*    @date   :2014/12/20
+*    @author :HaoNan Dai
 ******************************************/
 
 #include<winsock2.h>
@@ -23,22 +27,23 @@
 #include<vector>
 #include<string>
 #include<set>
+#include<map>
+#include<stdexcept>
 
 using namespace std;
+struct userComNum       //±£´æÓÃ»§ºÍÃ¿¸öÓÃ»§¹²Í¬µÄ·Ö´ÊÊı
+{
+    string userId;
+    double sim;
+};
 
 struct User             //±£´æÃ¿¸öÓÃ»§µÄid ·Ö´Ê ÁÚ¾Ó
 {
     string user_id;
     vector<string> words;
-    vector<string> friends;
+    vector<userComNum> friends;
+    map<string, double> word_preference;
 };
-
-struct userComNum       //±£´æÓÃ»§ºÍÃ¿¸öÓÃ»§¹²Í¬µÄ·Ö´ÊÊı
-{
-    string userId;
-    int commonNum;
-};
-
 
 
 MYSQL_RES *queryOrder1(MYSQL *mysqlPtr, char *order)        //ÔÚmsyqlÉÏÖ´ĞĞorderÃüÁî£¬·µ»Ø°üº¬½á¹ûµÄÖ¸Õë
@@ -47,12 +52,12 @@ MYSQL_RES *queryOrder1(MYSQL *mysqlPtr, char *order)        //ÔÚmsyqlÉÏÖ´ĞĞorder
     if (mysql_query(mysqlPtr, order) != 0)
     {
         fprintf(stderr, "query order1 error, %s!\n", mysql_error(mysqlPtr));
-        exit(1);
+        //exit(1);
     }
     else if ( (result = mysql_store_result(mysqlPtr)) == NULL )
     {
         fprintf(stderr, "save result error!\n");
-        exit(1);
+        //exit(1);
     }
     else
         return result;
@@ -63,17 +68,76 @@ void queryOrder2(MYSQL *mysqlPtr, char *order)              //ÔÚmysqlÉÏÖ´ĞĞ£¬²»·
     if (mysql_query(mysqlPtr, order) != 0)
     {
         fprintf(stderr, "query order2 error, %s!\n", mysql_error(mysqlPtr));
-        exit(1);
+        //exit(1);
     }
 }
 
-int calc_common_words(const User &user1, const User &user2)     //¼ÆËãÁ½¸öÓÃ»§¹²Í¬µÄ·Ö´ÊÊı
+double calc_sim(const User &user1, const User &user2)     //¼ÆËãÁ½¸öÓÃ»§¹²Í¬µÄÏàËÆ¶È,¹²Í¬·Ö´Ê´ïµ½20%µÄ²Å¼ÆËã£¬Î´´ïµ½µÄ·µ»ØÎŞĞ§±êÖ¾
 {
     set<string> u1(user1.words.begin(), user1.words.end());
     set<string> u2(user2.words.begin(), user2.words.end());
     set<string> intersection;
     set_intersection(u1.begin(), u1.end(), u2.begin(), u2.end(), inserter(intersection, intersection.begin()));
-    return intersection.size();
+    double usize = intersection.size();
+    double u1size = u1.size();
+    double common_rate = usize / u1size;
+    //cout << intersection.size() << ' ' << common_rate << endl;
+    if (common_rate > 0.2)                                  //¹²Í¬·Ö´ÊÊÇ±ÈÉÏaµÄ·Ö´ÊÊı´ïµ½20%Ê±¼ÆÊıÏàËÆ¶È
+    {
+        double a_aver_pre = 0.0, b_aver_pre = 0.0;          //a¡¢bµÄÆ½¾ùÆ«ºÃ
+        for (auto &t : user1.word_preference)       //¼ÆËãaµÄÆ½¾ùÆ«ºÃ
+            a_aver_pre += t.second;
+        a_aver_pre /= u1.size();
+        for (auto &t : user2.word_preference)       //¼ÆËãbµÄÆ½¾ùÆ«ºÃ
+            b_aver_pre += t.second;
+        b_aver_pre /= u2.size();
+        double tem = 0.0;
+        double sim = 0.0;
+        //cout << "a_avar_pre: " << a_aver_pre << " b_avar_pre: " << b_aver_pre << endl;
+        try
+        {
+            for (auto iter = intersection.begin(); iter != intersection.end(); ++iter)        //¸ù¾İ¹«Ê½¼ÆÊıÏàËÆ¶È
+                tem += (user1.word_preference.at(*iter) - a_aver_pre) * (user2.word_preference.at(*iter) - b_aver_pre);
+            //cout << "tem : " << tem << endl;
+        }
+        catch (out_of_range err)
+        {
+            err.what();
+            tem = 0.0;
+        }
+        sim = tem * common_rate;
+        return sim;
+    }
+    else
+        return -1000.0;         //·µ»ØÎŞĞ§±êÖ¾
+}
+void connector(char *sqlName, MYSQL *mysql)
+{
+	if (!mysql_real_connect(mysql, "localhost", "root", "dhn15158882311", sqlName, 3306, NULL, 0))	//connect to test2011
+	{
+      fprintf(stderr,"%s\n",mysql_error(mysql));											//prototype   const char *mysql_error(MYSQL *mysql)
+      exit(1);
+	}
+	else
+	{
+		fprintf(stderr, "mysql connect to user_name successfully!\n");
+	}
+}
+
+void setName(MYSQL *mysql)
+{
+	if (mysql_query(mysql, "set names gbk"))												//change character set
+	{
+		fprintf(stderr, "error!,%s\n", mysql_error(mysql));
+		exit(1);
+	}
+}
+void setCharacter(MYSQL *mysql)
+{
+	if ( mysql_set_character_set( mysql , "gbk" ))		//change the character set
+	{
+		fprintf(stderr, "error,%s\n", mysql_error(mysql));
+	}
 }
 
 int main()
@@ -89,62 +153,17 @@ int main()
 	mysql_init(&mysql3);
 
 
-	if (!mysql_real_connect(&mysql1, "localhost", "root", "dhn15158882311", sqlName1, 3306, NULL, 0))	//connect to test2011
-	{
-      fprintf(stderr,"%s\n",mysql_error(&mysql1));											//prototype   const char *mysql_error(MYSQL *mysql)
-      exit(1);
-	}
-	else
-	{
-		fprintf(stderr, "mysql1 connect to user_name successfully!\n");
-	}
-	if (!mysql_real_connect(&mysql2, "localhost", "root", "dhn15158882311", sqlName2, 3306, NULL, 0))	//connect to test2011
-	{
-      fprintf(stderr,"%s\n",mysql_error(&mysql2));											//prototype   const char *mysql_error(MYSQL *mysql)
-      exit(1);
-	}
-	else
-	{
-		fprintf(stderr, "mysql2 connect to test20 successfully!\n");
-	}
-	if (!mysql_real_connect(&mysql3, "localhost", "root", "dhn15158882311", sqlName3, 3306, NULL, 0))	//connect to test2011cp
-	{
-		fprintf(stderr, "%s\n", mysql_error(&mysql3));											//prototype   const char *mysql_error(MYSQL *mysql)
-		exit(1);
-	}
-	else
-	{
-		fprintf(stderr, "mysql3 connect to user_word_pre successfully!\n");
-	}
+    connector(sqlName1, &mysql1);
+    connector(sqlName2, &mysql2);
+    connector(sqlName3, &mysql3);
 
-	if (mysql_query(&mysql1, "set names gbk"))												//change character set
-	{
-		fprintf(stderr, "error!,%s\n", mysql_error(&mysql1));
-		exit(1);
-	}
-	if (mysql_query(&mysql2, "set names gbk"))												//change character set
-	{
-		fprintf(stderr, "error!,%s\n", mysql_error(&mysql1));
-		exit(1);
-	}
-	if (mysql_query(&mysql3, "set names gbk"))												//change character set
-	{
-		fprintf(stderr, "error!,%s\n", mysql_error(&mysql1));
-		exit(1);
-	}
+    setName(&mysql1);
+    setName(&mysql2);
+    setName(&mysql3);
 
-	if ( mysql_set_character_set( &mysql1 , "gbk" ))		//change the character set
-	{
-		fprintf(stderr, "error,%s\n", mysql_error(&mysql1));
-	}
-	if (mysql_set_character_set(&mysql2, "gbk"))		//change the character set
-	{
-		fprintf(stderr, "error,%s\n", mysql_error(&mysql1));
-	}
-	if (mysql_set_character_set(&mysql3, "gbk"))		//change the character set
-	{
-		fprintf(stderr, "error,%s\n", mysql_error(&mysql1));
-	}
+    setCharacter(&mysql1);
+	setCharacter(&mysql2);
+	setCharacter(&mysql3);
 
 
 	int counter = 0;
@@ -159,33 +178,39 @@ int main()
     {
 
         User curUser;                   //±£´æµ±Ç°ÓÃ»§
+        //curUser.words.push_back("ºşÄÏ");
+
         char select[50];
-        sprintf(select, "select word from user_words_pre.%s", userIdRow[0]);
+        sprintf(select, "select * from user_words_pre.%s", userIdRow[0]);
         MYSQL_RES *words_res = queryOrder1(&mysql2, select);
         MYSQL_ROW  word_row;
         string tem(userIdRow[0]);
         curUser.user_id = tem;
 
 //        //ÎªÃ¿¸öÓÃ»§½¨±í
-//        char createTable[50];
-//        sprintf(createTable, "create table user_friends.%s(friends varchar(20))", userIdRow[0]);
+//        char createTable[100];
+//        sprintf(createTable, "create table user_friends.%s(friends varchar(20), similar double default 0.0)", userIdRow[0]);
 //        queryOrder2(&mysql3, createTable);
 
         while ((word_row = mysql_fetch_row(words_res)))                 //¶ÁÈ¡Ã¿¸ö·Ö´Ê
         {
+            //cout << word_row[0] << endl;
             curUser.words.push_back(word_row[0]);
+            curUser.word_preference[ word_row[0] ] = atof( word_row[3] );
         }
+
         allUser.push_back(curUser);
 
         counter++;
     }//while
+
 
     cout << "¼ÆËãÏàËÆÁÚ¾Ó\n";
     //Ñ°ÕÒÏàËÆÁÚ¾Ó  Ê±¼ä¸´ÔÓ¶È:O(n2)
     int i = 0;
     for (auto a_iter = allUser.begin(); a_iter != allUser.end(); ++a_iter, i++)        //ÎªÃ¿¸öÓÃ»§aÑ°ÕÒÏàËÆÁÚ¾Ó
     {
-        if (!(i % 50))
+        if (!(i % 50))                                                  //¼ÆÊı
             printf("%d\n", i);
         vector<userComNum> userComNumVec;
         for (auto b_iter = allUser.begin(); b_iter != allUser.end(); ++b_iter)      //ºÍÆäËûµÄÃ¿¸öÓÃ»§b¶Ô±È
@@ -193,36 +218,39 @@ int main()
             userComNum b_user;
             if (a_iter != b_iter)
             {
-                int commonWdNum = calc_common_words(*a_iter, *b_iter);        //¼ÆËãÁ½¸öÓÃ»§¹²Í¬µÄ·Ö´ÊÊı
-
-                //    **********¼ÆËãÏàËÆ¶È***************
-
+                double similar = calc_sim(*a_iter, *b_iter);        //¼ÆËãÁ½¸öÓÃ»§¹²Í¬µÄÏàËÆ¶È
                 b_user.userId = b_iter->user_id;
-                b_user.commonNum = commonWdNum;
-//                printf("%s-%s:%d common words\n", (a_iter->user_id).c_str(), (b_user.userId).c_str(), b_user.commonNum);
+                b_user.sim = similar;
+//                printf("%s-%s:%f sim\n", (a_iter->user_id).c_str(), (b_user.userId).c_str(), b_user.sim);
 //                system("pause");
 
             }
-            userComNumVec.push_back(b_user);
+            if (b_user.sim != -1000.0)
+            {
+                userComNumVec.push_back(b_user);
+            }
         }
 
         sort(userComNumVec.begin(), userComNumVec.end(),
-             [] (const userComNum &u1, const userComNum &u2) {return u1.commonNum > u2.commonNum;});    //°´Óëa¹²Í¬·Ö´ÊÊı½øĞĞÅÅĞò
-        for (auto it = userComNumVec.begin(); it != userComNumVec.begin() + 10; ++it)    //½«Ç°Ê®¸ö¹²Í¬·Ö´Ê×î¶àµÄÓÃ»§²åÈëaµÄfriendsÖĞ
+             [] (const userComNum &u1, const userComNum &u2) {return u1.sim > u2.sim;});    //°´ÓëaµÄÏàËÆ¶È½øĞĞÅÅĞò
+        for (auto it = userComNumVec.begin(); it != userComNumVec.end() && it != userComNumVec.begin() + 10; ++it)    //½«Ç°Ê®¸öÏàËÆ¶È×î¸ßµÄÓÃ»§²åÈëaµÄfriendsÖĞ
         {
-            a_iter->friends.push_back(it->userId);
+            a_iter->friends.push_back(*it);
         }
-
-        //cout << ++i << endl;
     }//end for
 
     //Ğ´ÈëÊı¾İ¿â
     char insert[50];
+    cout << "Ğ´ÈëÊı¾İ¿â\n";
+    int j = 0;
     for (auto iter = allUser.begin(); iter != allUser.end(); ++iter)
     {
+        if (!(j % 50))                                                  //¼ÆÊı
+            printf("%d\n", j);
+        j++;
         for (auto it = iter->friends.begin(); it != iter->friends.end(); ++it)
         {
-            sprintf(insert, "insert into user_friends.%s values (%s)", (iter->user_id).c_str(), (*it).c_str());
+            sprintf(insert, "insert into user_friends.%s values (%s, %f)", (iter->user_id).c_str(), (*it).userId.c_str(), (*it).sim);
             queryOrder2(&mysql3, insert);
         }
     }//end for
