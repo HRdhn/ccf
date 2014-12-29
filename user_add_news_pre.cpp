@@ -1,7 +1,8 @@
 /*****************************************************
-    @data:2014/12/24
-    @author:conan_dhn
-    @remark: 计算每条新闻的偏好,并更新数据库
+*    @file :user_add_news_pre.cpp
+*    @data :2014/12/24
+*    @author :conan_dhn
+*    @remark : 计算每条新闻的偏好,并更新数据库
 ****************************************************/
 #include<winsock2.h>
 #include"mysql.h"
